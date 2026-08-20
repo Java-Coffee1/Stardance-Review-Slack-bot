@@ -26,6 +26,19 @@ cp .env.example .env
 # fill in SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, SLACK_APP_TOKEN, SLACK_CHANNEL_ID
 ```
 
+Then set `REVIEW_BOT_ID` too — this locks the tool down to only trust messages
+actually posted by *the review bot* (the one that posts "new design
+submission!" / "returned:" / "approved:" messages), instead of trusting any
+message in the channel that merely looks like one. With `SLACK_BOT_TOKEN` and
+`SLACK_CHANNEL_ID` already filled in above, run:
+
+```bash
+node src/inspect.js
+```
+
+and copy the `bot_id` field from the printed JSON into `REVIEW_BOT_ID`. Leave
+it blank to skip this check (not recommended once this is live).
+
 ## 3. Run it
 
 ### Option A — Docker (recommended)

@@ -48,8 +48,14 @@
     max-height:420px; overflow-y:auto; display:none;
   }
   #search-results.open{display:block;}
-  .search-result{padding:14px 16px; border-bottom:1px solid var(--line-soft);}
+  .search-result{padding:14px 16px; border-bottom:1px solid var(--line-soft); cursor:pointer; transition:background .12s ease;}
+  .search-result:hover{background:rgba(201,122,61,0.08);}
   .search-result:last-child{border-bottom:none;}
+  .ticket.just-found, .approved-card.just-found{animation:justFound 1.6s ease-out;}
+  @keyframes justFound{
+    0%{border-color:var(--copper-bright); box-shadow:0 0 0 3px rgba(201,122,61,0.35);}
+    100%{border-color:var(--line); box-shadow:0 0 0 0 rgba(201,122,61,0);}
+  }
   .search-result .sr-top{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:4px;}
   .search-result .sr-name{font-family:var(--disp); font-weight:600; font-size:14px;}
   .search-result .sr-author{font-family:var(--mono); font-size:11px; color:var(--text-dim);}
@@ -193,7 +199,7 @@ function renderQueue(projects) {
     items.forEach(p => {
       const priorFeedback = [...p.events].reverse().find(e => e.type === "review_returned");
       html += `
-        <div class="ticket" data-n="${String(n++).padStart(2, "0")}">
+        <div class="ticket" data-id="${p.id}" data-n="${String(n++).padStart(2, "0")}">
           <div class="ticket-top">
             <div><div class="ticket-name">${p.name}</div><div class="ticket-author">${p.author}</div></div>
             <span class="badge ${p.status}">${statusLabel[p.status]}</span>
@@ -221,7 +227,7 @@ function renderApproved(projects) {
   document.getElementById("approved-list").innerHTML = `<div class="approved-grid">` + approved.map(p => {
     const note = approvalNote(p);
     return `
-      <div class="approved-card">
+      <div class="approved-card" data-id="${p.id}">
         <div class="ac-name">${p.name}</div>
         <div class="ac-author">${p.author}</div>
         ${note ? `<div class="ac-note"><b style="color:var(--text)">${note.reviewer}:</b> ${note.feedback}</div>` : ""}
@@ -247,13 +253,15 @@ function renderLog(events) {
     </div>`).join("") || `<div class="empty">No events yet.</div>`;
 }
 
+function switchTab(viewName) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelector(`.tab[data-view="${viewName}"]`).classList.add("active");
+  document.getElementById("view-" + viewName).classList.add("active");
+}
+
 document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById("view-" + tab.dataset.view).classList.add("active");
-  });
+  tab.addEventListener("click", () => switchTab(tab.dataset.view));
 });
 
 // ---- search ----
@@ -294,7 +302,7 @@ function renderSearchResults(results) {
     return;
   }
   searchResults.innerHTML = results.map(r => `
-    <div class="search-result">
+    <div class="search-result" data-id="${r.id}" data-status="${r.status}">
       <div class="sr-top">
         <span class="sr-name">${r.name}</span>
         <span class="badge ${r.status}">${r.statusLabel}</span>
@@ -310,8 +318,31 @@ function renderSearchResults(results) {
   searchResults.classList.add("open");
 }
 
+// Clicking a result jumps to that project: switch to the tab it lives in,
+// scroll its card into view, and briefly highlight it. Delegated on the
+// container since results are re-rendered on every keystroke.
+searchResults.addEventListener("click", (e) => {
+  const item = e.target.closest(".search-result");
+  if (!item) return;
+
+  const targetView = item.dataset.status === "approved" ? "approved" : "queue";
+  switchTab(targetView);
+
+  searchResults.classList.remove("open");
+  searchInput.value = "";
+
+  // Wait a tick for the tab's display:none to lift before measuring/scrolling.
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`#view-${targetView} [data-id="${item.dataset.id}"]`);
+    if (!card) return; // e.g. status changed between search and click
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("just-found");
+    setTimeout(() => card.classList.remove("just-found"), 1600);
+  });
+});
+
 load();
 setInterval(load, 15000); // poll for new bot activity every 15s
 </script>
 </body>
-</html>
+</html> 

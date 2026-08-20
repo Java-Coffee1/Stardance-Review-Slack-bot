@@ -10,6 +10,7 @@ const {
   hasAnyEvents,
 } = require("./db");
 const { parseMessage, resolveMention } = require("./parser");
+const { isFromReviewBot } = require("./trust");
 const { computeStatus, STATUS_LABEL } = require("./status");
 const { computeAvgResponseTimeMs, computeRecentThroughputPerHour, estimateWaitMs, formatDuration } = require("./stats");
 const { runBackfill } = require("./backfill");
@@ -39,6 +40,10 @@ slackApp.event("message", async ({ event, client }) => {
   if (CHANNEL_ID && event.channel !== CHANNEL_ID) return;
   if (event.subtype && event.subtype !== "bot_message") return;
   if (!event.text) return;
+  if (!isFromReviewBot(event)) {
+    console.log(`[skip] message in-channel but not from the review bot (bot_id=${event.bot_id || "none"}, ts=${event.ts})`);
+    return;
+  }
 
   try {
     const parsed = parseMessage(event.text);

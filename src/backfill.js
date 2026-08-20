@@ -22,6 +22,7 @@ require("dotenv").config();
 const { WebClient } = require("@slack/web-api");
 const { findOrCreateProject, insertEvent } = require("./db");
 const { parseMessage, resolveMention } = require("./parser");
+const { isFromReviewBot } = require("./trust");
 
 const CHANNEL_ID = process.env.SLACK_CHANNEL_ID;
 const PAGE_SIZE = Number(process.env.SLACK_HISTORY_PAGE_SIZE || 999); // Slack's actual max
@@ -64,6 +65,7 @@ async function runBackfill() {
   let cursor;
   let imported = 0;
   let skipped = 0;
+  let untrusted = 0;
   let errored = 0;
   let pagesFetched = 0;
 
@@ -77,6 +79,10 @@ async function runBackfill() {
 
     for (const msg of messages) {
       if (!msg.text) continue;
+      if (!isFromReviewBot(msg)) {
+        untrusted++;
+        continue;
+      }
 
       try {
         const parsed = parseMessage(msg.text);
@@ -130,8 +136,8 @@ async function runBackfill() {
     cursor = res.response_metadata?.next_cursor || undefined;
   } while (cursor);
 
-  console.log(`[backfill] Done. Fetched ${pagesFetched} pages, imported ${imported} events, skipped ${skipped} unmatched, ${errored} errored.`);
-  return { pagesFetched, imported, skipped, errored };
+  console.log(`[backfill] Done. Fetched ${pagesFetched} pages, imported ${imported} events, skipped ${skipped} unmatched, ${untrusted} untrusted, ${errored} errored.`);
+  return { pagesFetched, imported, skipped, untrusted, errored };
 }
 
 module.exports = { runBackfill };

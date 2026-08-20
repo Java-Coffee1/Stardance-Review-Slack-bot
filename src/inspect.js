@@ -1,4 +1,6 @@
-// src/inspect.js — temporary, paste this content in, run, then you can delete it
+// src/inspect.js — dumps raw Slack message JSON for the channel. Originally a
+// throwaway debug script; now also the easiest way to find REVIEW_BOT_ID (see
+// README) — run this, grab the "bot_id" field off a real review-bot message.
 require("dotenv").config();
 const { WebClient } = require("@slack/web-api");
 const client = new WebClient(process.env.SLACK_BOT_TOKEN);
