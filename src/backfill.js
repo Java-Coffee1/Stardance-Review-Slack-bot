@@ -11,11 +11,12 @@
  *
  * Rate limiting: requests the max page size Slack allows (999) on every
  * call and only pauses when Slack actually returns a 429, backing off for
- * exactly the Retry-After duration it specifies. That's the fastest legal
- * pace regardless of which tier your app is on — a private, single-workspace
- * bot like this one normally qualifies as an "internal customer-built app"
- * (Tier 3: 999/request, 50+ requests/min), not the stricter 15/request,
- * 1/min tier that applies to commercially-distributed non-Marketplace apps.
+ * exactly the Retry-After duration it specifies.
+ *
+ * Resilience: each message is processed in its own try/catch. One bad or
+ * unexpectedly-shaped message logs a warning (with the raw text, so it can
+ * be diagnosed) and gets skipped, rather than aborting the whole batch and
+ * losing everything already imported on that run.
  */
 require("dotenv").config();
 const { WebClient } = require("@slack/web-api");
@@ -35,8 +36,6 @@ async function runBackfill() {
     rejectRateLimitedCalls: false,
   });
 
-  // Resolving a mention hits users.info — cache handles across the whole
-  // run so we don't burn extra API calls re-resolving the same person.
   const mentionCache = new Map();
   async function resolveCached(raw) {
     if (mentionCache.has(raw)) return mentionCache.get(raw);
@@ -57,7 +56,7 @@ async function runBackfill() {
           await sleep((retryAfter + 1) * 1000);
           continue;
         }
-        throw err; // not a rate-limit error — surface it
+        throw err;
       }
     }
   }
@@ -65,6 +64,7 @@ async function runBackfill() {
   let cursor;
   let imported = 0;
   let skipped = 0;
+  let errored = 0;
   let pagesFetched = 0;
 
   do {
@@ -77,52 +77,65 @@ async function runBackfill() {
 
     for (const msg of messages) {
       if (!msg.text) continue;
-      const parsed = parseMessage(msg.text);
-      if (!parsed) {
-        skipped++;
-        continue;
-      }
 
-      const occurredAt = new Date(Number(msg.ts) * 1000).toISOString();
-      const author = await resolveCached(parsed.authorRaw);
+      try {
+        const parsed = parseMessage(msg.text);
+        if (!parsed) {
+          skipped++;
+          continue;
+        }
 
-      const projectId = findOrCreateProject({
-        name: parsed.name,
-        author,
-        githubUrl: parsed.type === "new_submission" ? parsed.githubUrl : null,
-        occurredAt,
-      });
+        if (!parsed.projectUrl) {
+          // Shouldn't happen given how the parser is built, but guard
+          // against the exact NOT NULL crash we hit, and log enough to
+          // diagnose it instead of losing the whole batch.
+          console.warn(`[backfill] Parsed message but got no projectUrl — skipping. ts=${msg.ts}\n  text: ${msg.text}`);
+          skipped++;
+          continue;
+        }
 
-      if (parsed.type === "new_submission") {
-        insertEvent({ projectId, type: "new_submission", slackTs: msg.ts, occurredAt, rawText: msg.text });
-      } else {
-        const reviewer = await resolveCached(parsed.reviewerRaw);
-        insertEvent({
-          projectId,
-          type: "review_returned",
-          reviewer,
-          feedback: parsed.feedback,
-          slackTs: msg.ts,
+        const occurredAt = new Date(Number(msg.ts) * 1000).toISOString();
+        const author = await resolveCached(parsed.authorRaw);
+
+        const projectId = findOrCreateProject({
+          projectUrl: parsed.projectUrl,
+          name: parsed.name,
+          author,
+          githubUrl: parsed.type === "new_submission" ? parsed.githubUrl : null,
           occurredAt,
-          rawText: msg.text,
         });
+
+        if (parsed.type === "new_submission") {
+          insertEvent({ projectId, type: "new_submission", slackTs: msg.ts, occurredAt, rawText: msg.text });
+        } else {
+          const reviewer = await resolveCached(parsed.reviewerRaw);
+          insertEvent({
+            projectId,
+            type: parsed.type,
+            reviewer,
+            feedback: parsed.feedback,
+            slackTs: msg.ts,
+            occurredAt,
+            rawText: msg.text,
+          });
+        }
+        imported++;
+      } catch (err) {
+        // Don't let one bad message abort everything already imported this run.
+        errored++;
+        console.warn(`[backfill] Failed to process message (ts=${msg.ts}), skipping it: ${err.message}\n  text: ${msg.text}`);
       }
-      imported++;
     }
 
     cursor = res.response_metadata?.next_cursor || undefined;
-    // No fixed sleep here — only pause inside fetchHistoryPage, and only if
-    // Slack actually rate-limits us.
   } while (cursor);
 
-  console.log(`[backfill] Done. Fetched ${pagesFetched} pages, imported ${imported} events, skipped ${skipped} unmatched messages.`);
-  return { pagesFetched, imported, skipped };
+  console.log(`[backfill] Done. Fetched ${pagesFetched} pages, imported ${imported} events, skipped ${skipped} unmatched, ${errored} errored.`);
+  return { pagesFetched, imported, skipped, errored };
 }
 
 module.exports = { runBackfill };
 
-// Only auto-run when invoked directly (`npm run backfill` / `node src/backfill.js`)
-// — not when imported by server.js for the empty-database auto-backfill.
 if (require.main === module) {
   runBackfill().catch((err) => {
     console.error("Backfill failed:", err);

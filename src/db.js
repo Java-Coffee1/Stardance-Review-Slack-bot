@@ -4,22 +4,27 @@ const path = require("path");
 const db = new Database(path.join(__dirname, "..", "data", "queue.db"));
 db.pragma("journal_mode = WAL");
 
+// project_url is the real identity now (the stardance.hackclub.com/projects/N
+// link every message type carries) — far more reliable than (name, author),
+// since names can be edited and don't collide-proof authors with multiple
+// projects. name/author are still stored for display, and can drift/update
+// as the bot sees fresher messages for the same project_url.
 db.exec(`
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_url TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   author TEXT NOT NULL,
   github_url TEXT,
-  created_at TEXT NOT NULL,
-  UNIQUE(name, author)
+  created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER NOT NULL,
-  type TEXT NOT NULL,             -- 'new_submission' | 'review_returned'
-  reviewer TEXT,                  -- set when type = review_returned
-  feedback TEXT,                  -- set when type = review_returned
+  type TEXT NOT NULL,             -- 'new_submission' | 'review_returned' | 'approved'
+  reviewer TEXT,                  -- set when type = review_returned | approved
+  feedback TEXT,                  -- set when type = review_returned | approved
   slack_ts TEXT NOT NULL,         -- Slack message timestamp (sortable, unique-ish)
   occurred_at TEXT NOT NULL,      -- ISO string derived from slack_ts
   raw_text TEXT,
@@ -29,19 +34,22 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(slack_ts);
 `);
 
-function findOrCreateProject({ name, author, githubUrl, occurredAt }) {
-  const existing = db
-    .prepare("SELECT * FROM projects WHERE name = ? AND author = ?")
-    .get(name, author);
+function findOrCreateProject({ projectUrl, name, author, githubUrl, occurredAt }) {
+  const existing = db.prepare("SELECT * FROM projects WHERE project_url = ?").get(projectUrl);
   if (existing) {
+    // Keep display fields fresh if a later message has better info
+    // (e.g. a github repo link that a resubmission added).
     if (githubUrl && !existing.github_url) {
       db.prepare("UPDATE projects SET github_url = ? WHERE id = ?").run(githubUrl, existing.id);
+    }
+    if (name && name !== existing.name) {
+      db.prepare("UPDATE projects SET name = ? WHERE id = ?").run(name, existing.id);
     }
     return existing.id;
   }
   const info = db
-    .prepare("INSERT INTO projects (name, author, github_url, created_at) VALUES (?, ?, ?, ?)")
-    .run(name, author, githubUrl || null, occurredAt);
+    .prepare("INSERT INTO projects (project_url, name, author, github_url, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(projectUrl, name, author, githubUrl || null, occurredAt);
   return info.lastInsertRowid;
 }
 
@@ -70,7 +78,8 @@ function getAllProjectsWithEvents() {
 function getAllEventsChronological() {
   return db
     .prepare(
-      `SELECT events.*, projects.name AS project_name, projects.author AS project_author, projects.github_url
+      `SELECT events.*, projects.name AS project_name, projects.author AS project_author,
+              projects.github_url, projects.project_url
        FROM events JOIN projects ON events.project_id = projects.id
        ORDER BY events.slack_ts ASC`
     )

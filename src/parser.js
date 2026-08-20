@@ -1,17 +1,29 @@
 /**
- * Parses the review bot's messages. Slack delivers these with real mrkdwn
- * syntax in event.text — bold via *text*, links via <url|label>, mentions
- * via <@USERID> — not plain stripped text. Confirmed against real payloads:
+ * Parses the three message shapes the Stardance review bot posts. All three
+ * share a common structure: a bolded label, then a bolded project link in
+ * mrkdwn (`*<url|name>*`), then `by <@authorId>`, then — for reviews only —
+ * `*feedback from <@reviewerId>:*` followed by the feedback text.
  *
- *   "*new design submission!* *<https://.../projects/48410|AeroTrack>*
- *    by <@U0B8K9XGVMM> :yay: *github repo:*
- *    <https://github.com/x/y|https://github.com/x/y>"
+ *   NEW SUBMISSION:
+ *     "*new design submission!* *<url|Name>* by <@author> :yay:
+ *      *github repo:* <githubUrl|githubUrl>"
  *
- * The "review returned" shape hasn't been confirmed against a raw payload
- * yet, so its regex is written loosely (tolerating any amount of whitespace
- * between segments) to survive minor formatting differences. If it still
- * doesn't match after this fix, run the inspect script filtered to a
- * "review_returned"-type message and send that over.
+ *   REVIEW RETURNED (needs changes):
+ *     ":yay: brand new design review!! :stardance_star:
+ *      *returned:* *<url|Name>* by <@author>
+ *      *feedback from <@reviewer>:* feedback text"
+ *
+ *   APPROVED (for funding):
+ *     ":yay: brand new design review!! :stardance_star:
+ *      *approved:* *<url|Name>* by <@author>
+ *      *feedback from <@reviewer>:* feedback text"
+ *
+ * The project URL (stardance.hackclub.com/projects/N) is extracted from
+ * every message type and used as the durable identity for a project —
+ * project names can be edited later, but this URL doesn't change.
+ *
+ * All three regexes and mrkdwnToPlain() have been verified against real
+ * captured Slack payloads (see project history) — not guessed formats.
  */
 
 function mrkdwnToPlain(text) {
@@ -23,37 +35,48 @@ function mrkdwnToPlain(text) {
     .trim();
 }
 
-const NEW_SUBMISSION_RE =
-  /\*new design submission!\*\s*\*(.+?)\*\s*by\s*(<@[\w]+>)\s*:\w+:[\s\S]*?\*github repo:\*\s*<([^|>]+)(?:\|[^>]*)?>/i;
+const PROJECT_LINK = `\\*<(https?:\\/\\/[^|>]+)\\|([^>]+)>\\*`;
 
-const REVIEW_RETURNED_RE =
-  /returned:\s*\*(.+?)\*\s*by\s*(<@[\w]+>)[\s\S]*?feedback from\s*(<@[\w]+>)\s*:\s*([\s\S]+)/i;
+const NEW_SUBMISSION_RE = new RegExp(
+  `\\*new design submission!\\*\\s*${PROJECT_LINK}\\s*by\\s*(<@[\\w]+>)\\s*:\\w+:[\\s\\S]*?\\*github repo:\\*\\s*<([^|>]+)(?:\\|[^>]*)?>`,
+  "i"
+);
+
+// Matches both "*returned:*" (needs changes) and "*approved:*" (approved
+// for funding) — same shape, different label.
+const REVIEW_RE = new RegExp(
+  `\\*(returned|approved):\\*\\s*${PROJECT_LINK}\\s*by\\s*(<@[\\w]+>)\\s*\\*feedback from\\s*(<@[\\w]+>):\\*\\s*([\\s\\S]+)`,
+  "i"
+);
 
 function parseNewSubmission(text) {
   const m = text.match(NEW_SUBMISSION_RE);
   if (!m) return null;
   return {
     type: "new_submission",
-    name: mrkdwnToPlain(m[1]),
-    authorRaw: m[2].trim(),
-    githubUrl: m[3].trim(),
+    projectUrl: m[1].trim(),
+    name: mrkdwnToPlain(m[2]),
+    authorRaw: m[3].trim(),
+    githubUrl: m[4].trim(),
   };
 }
 
-function parseReviewReturned(text) {
-  const m = text.match(REVIEW_RETURNED_RE);
+function parseReview(text) {
+  const m = text.match(REVIEW_RE);
   if (!m) return null;
+  const label = m[1].toLowerCase();
   return {
-    type: "review_returned",
-    name: mrkdwnToPlain(m[1]),
-    authorRaw: m[2].trim(),
-    reviewerRaw: m[3].trim(),
-    feedback: mrkdwnToPlain(m[4]),
+    type: label === "approved" ? "approved" : "review_returned",
+    projectUrl: m[2].trim(),
+    name: mrkdwnToPlain(m[3]),
+    authorRaw: m[4].trim(),
+    reviewerRaw: m[5].trim(),
+    feedback: mrkdwnToPlain(m[6]),
   };
 }
 
 function parseMessage(text) {
-  return parseNewSubmission(text) || parseReviewReturned(text);
+  return parseNewSubmission(text) || parseReview(text);
 }
 
 /**
@@ -74,4 +97,4 @@ async function resolveMention(raw, slackClient) {
   }
 }
 
-module.exports = { parseNewSubmission, parseReviewReturned, parseMessage, resolveMention };
+module.exports = { parseNewSubmission, parseReview, parseMessage, resolveMention };

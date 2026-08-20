@@ -11,7 +11,7 @@
   :root{
     --bg:#14171c; --bg-panel:#191d24; --bg-card:#20252e; --line:#2a2f3a; --line-soft:#232830;
     --copper:#c97a3d; --copper-bright:#e0955a; --text:#eae7e0; --text-dim:#8b93a1; --text-faint:#5c6472;
-    --awaiting:#5fa8d3; --needs:#e8b04b; --resub:#9d8ce0;
+    --awaiting:#5fa8d3; --needs:#e8b04b; --resub:#9d8ce0; --approved:#6fcf97;
     --mono:'IBM Plex Mono',monospace; --disp:'Space Grotesk',sans-serif; --body:'Inter',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -29,11 +29,34 @@
   .stat .n{font-size:22px; font-weight:600; line-height:1;}
   .stat .l{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:6px;}
   .stat.awaiting .n{color:var(--awaiting);} .stat.needs .n{color:var(--needs);} .stat.resub .n{color:var(--resub);}
+  .stat.approved .n{color:var(--approved);}
   .stat.response .n{color:var(--copper-bright); font-size:18px;}
-  .tabs{max-width:1100px; margin:0 auto; padding:24px 32px 0; display:flex; gap:8px;}
+  .tabs{max-width:1100px; margin:0 auto; padding:24px 32px 0; display:flex; gap:8px; align-items:flex-start;}
   .tab{font-family:var(--mono); font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; padding:10px 18px; border-radius:7px; cursor:pointer; color:var(--text-dim); border:1px solid transparent; transition:all .15s ease;}
   .tab:hover{color:var(--text);}
   .tab.active{color:var(--copper-bright); background:rgba(201,122,61,0.09); border-color:rgba(201,122,61,0.25);}
+  .search-wrap{position:relative; margin-left:auto; width:280px;}
+  #search-input{
+    width:100%; background:var(--bg-card); border:1px solid var(--line); border-radius:7px;
+    padding:10px 14px; color:var(--text); font-family:var(--body); font-size:13px; outline:none;
+  }
+  #search-input::placeholder{color:var(--text-faint);}
+  #search-input:focus{border-color:var(--copper);}
+  #search-results{
+    position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:20;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    max-height:420px; overflow-y:auto; display:none;
+  }
+  #search-results.open{display:block;}
+  .search-result{padding:14px 16px; border-bottom:1px solid var(--line-soft);}
+  .search-result:last-child{border-bottom:none;}
+  .search-result .sr-top{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:4px;}
+  .search-result .sr-name{font-family:var(--disp); font-weight:600; font-size:14px;}
+  .search-result .sr-author{font-family:var(--mono); font-size:11px; color:var(--text-dim);}
+  .search-result .sr-eta{font-family:var(--mono); font-size:12px; color:var(--copper-bright); margin-top:6px;}
+  .search-result .sr-position{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .search-result .sr-note{font-size:12px; color:var(--text-faint); margin-top:6px; font-style:italic;}
+  .search-empty{padding:16px; font-family:var(--mono); font-size:12px; color:var(--text-faint);}
   main{max-width:1100px; margin:0 auto; padding:32px 32px 100px;}
   .view{display:none;} .view.active{display:block;}
   .queue-wrap{position:relative; padding-left:38px;}
@@ -51,7 +74,10 @@
   .badge.awaiting{color:var(--awaiting); background:rgba(95,168,211,0.12); border:1px solid rgba(95,168,211,0.3);}
   .badge.needs{color:var(--needs); background:rgba(232,176,75,0.12); border:1px solid rgba(232,176,75,0.3);}
   .badge.resub{color:var(--resub); background:rgba(157,140,224,0.12); border:1px solid rgba(157,140,224,0.3);}
+  .badge.approved{color:var(--approved); background:rgba(111,207,151,0.12); border:1px solid rgba(111,207,151,0.3);}
   .ticket-meta{font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-bottom:10px;}
+  .ticket-eta{font-family:var(--mono); font-size:11.5px; color:var(--copper-bright); margin-bottom:10px;}
+  .ticket-eta-note{color:var(--text-faint); font-style:italic;}
   .ticket-feedback{font-size:13.5px; color:var(--text-dim); line-height:1.55; border-top:1px solid var(--line-soft); padding-top:10px; margin-top:4px;}
   .ticket-feedback b{color:var(--text); font-weight:500;}
   .ticket-links{margin-top:10px; display:flex; gap:14px;}
@@ -68,8 +94,16 @@
   .tag.returned{color:var(--needs); background:rgba(232,176,75,0.12);}
   footer{max-width:1100px; margin:0 auto; padding:0 32px 60px; font-family:var(--mono); font-size:11px; color:var(--text-faint); border-top:1px solid var(--line); padding-top:20px;}
   .empty{color:var(--text-faint); font-family:var(--mono); font-size:13px; padding:40px 0;}
+  .approved-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;}
+  .approved-card{background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  .approved-card .ac-name{font-family:var(--disp); font-weight:600; font-size:15px; margin-bottom:3px;}
+  .approved-card .ac-author{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); margin-bottom:8px;}
+  .approved-card .ac-note{font-size:13px; color:var(--text-dim); line-height:1.5; margin-bottom:8px;}
+  .approved-card .ac-meta{font-family:var(--mono); font-size:10.5px; color:var(--text-faint);}
   @media (max-width:640px){
     header,.tabs,main,footer{padding-left:18px; padding-right:18px;}
+    .tabs{flex-wrap:wrap;}
+    .search-wrap{width:100%; margin-left:0; order:3;}
     .queue-wrap{padding-left:28px;} .trace{left:5px;}
     .ticket::before{left:-28px; width:16px; height:16px; font-size:9px;}
     .log-item{grid-template-columns:1fr; gap:6px;}
@@ -87,12 +121,20 @@
 
 <div class="tabs">
   <div class="tab active" data-view="queue">Current Queue</div>
+  <div class="tab" data-view="approved">Approved</div>
   <div class="tab" data-view="log">Full Log</div>
+  <div class="search-wrap">
+    <input id="search-input" type="text" placeholder="Search your project or name..." autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
 </div>
 
 <main>
   <div class="view active" id="view-queue">
     <div class="queue-wrap"><div class="trace"></div><div id="queue-groups"></div></div>
+  </div>
+  <div class="view" id="view-approved">
+    <div id="approved-list"></div>
   </div>
   <div class="view" id="view-log">
     <div id="log-list"></div>
@@ -102,7 +144,7 @@
 <footer id="footer-note">connecting to API…</footer>
 
 <script>
-const statusLabel = { awaiting: "Awaiting First Review", needs: "Needs Changes", resub: "Resubmitted — Awaiting Re-Review" };
+const statusLabel = { awaiting: "Awaiting First Review", needs: "Needs Changes", resub: "Resubmitted — Awaiting Re-Review", approved: "Approved for Funding" };
 const order = ["awaiting", "resub", "needs"];
 const groupTitles = {
   awaiting: "Awaiting first review",
@@ -118,6 +160,7 @@ async function load() {
     const { events } = await lRes.json();
     renderStats(projects, avgResponseTimeLabel);
     renderQueue(projects);
+    renderApproved(projects);
     renderLog(events);
     document.getElementById("footer-note").textContent =
       `${projects.length} projects tracked · ${events.length} events on file · live from Slack`;
@@ -128,13 +171,14 @@ async function load() {
 }
 
 function renderStats(projects, avgResponseTimeLabel) {
-  const counts = { awaiting: 0, needs: 0, resub: 0 };
+  const counts = { awaiting: 0, needs: 0, resub: 0, approved: 0 };
   projects.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="n">${projects.length}</div><div class="l">Total Projects</div></div>
     <div class="stat awaiting"><div class="n">${counts.awaiting}</div><div class="l">Awaiting Review</div></div>
     <div class="stat needs"><div class="n">${counts.needs}</div><div class="l">Needs Changes</div></div>
     <div class="stat resub"><div class="n">${counts.resub}</div><div class="l">Resubmitted</div></div>
+    <div class="stat approved"><div class="n">${counts.approved}</div><div class="l">Approved for Funding</div></div>
     <div class="stat response"><div class="n">${avgResponseTimeLabel || "—"}</div><div class="l">Avg Review Time</div></div>`;
 }
 
@@ -155,12 +199,36 @@ function renderQueue(projects) {
             <span class="badge ${p.status}">${statusLabel[p.status]}</span>
           </div>
           <div class="ticket-meta">${p.status === "needs" ? "reviewed" : "submitted"} ${fmtTime(p.lastActivityAt)}${p.events.length > 1 ? ` · ${p.events.length} events on file` : ""}</div>
+          ${p.etaLabel ? `<div class="ticket-eta">${p.positionAhead === 0 ? "Next up" : `${p.positionAhead} ahead`} · estimated wait ~${p.etaLabel}</div>` : ""}
+          ${p.etaNote && p.status !== "needs" ? `<div class="ticket-eta ticket-eta-note">${p.etaNote}</div>` : ""}
           ${priorFeedback ? `<div class="ticket-feedback"><b>${priorFeedback.reviewer}:</b> ${priorFeedback.feedback}</div>` : ""}
           ${p.githubUrl ? `<div class="ticket-links"><a href="${p.githubUrl}" target="_blank" rel="noopener">github repo →</a></div>` : ""}
         </div>`;
     });
   });
   document.getElementById("queue-groups").innerHTML = html || `<div class="empty">Queue is empty.</div>`;
+}
+
+function renderApproved(projects) {
+  const approved = projects
+    .filter(p => p.status === "approved")
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt)); // newest approvals first
+  if (!approved.length) {
+    document.getElementById("approved-list").innerHTML = `<div class="empty">No projects approved for funding yet.</div>`;
+    return;
+  }
+  const approvalNote = p => [...p.events].reverse().find(e => e.type === "approved");
+  document.getElementById("approved-list").innerHTML = `<div class="approved-grid">` + approved.map(p => {
+    const note = approvalNote(p);
+    return `
+      <div class="approved-card">
+        <div class="ac-name">${p.name}</div>
+        <div class="ac-author">${p.author}</div>
+        ${note ? `<div class="ac-note"><b style="color:var(--text)">${note.reviewer}:</b> ${note.feedback}</div>` : ""}
+        <div class="ac-meta">approved ${fmtTime(p.lastActivityAt)}</div>
+        ${p.githubUrl ? `<div class="ticket-links" style="margin-top:8px"><a href="${p.githubUrl}" target="_blank" rel="noopener">github repo →</a></div>` : ""}
+      </div>`;
+  }).join("") + `</div>`;
 }
 
 function renderLog(events) {
@@ -187,6 +255,60 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("view-" + tab.dataset.view).classList.add("active");
   });
 });
+
+// ---- search ----
+const searchInput = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+let searchDebounce;
+
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchDebounce);
+  const q = searchInput.value.trim();
+  if (!q) {
+    searchResults.classList.remove("open");
+    searchResults.innerHTML = "";
+    return;
+  }
+  searchDebounce = setTimeout(() => runSearch(q), 250);
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-wrap")) searchResults.classList.remove("open");
+});
+
+async function runSearch(q) {
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const { results } = await res.json();
+    renderSearchResults(results);
+  } catch (err) {
+    searchResults.innerHTML = `<div class="search-empty">Search failed — is the server running?</div>`;
+    searchResults.classList.add("open");
+  }
+}
+
+function renderSearchResults(results) {
+  if (!results.length) {
+    searchResults.innerHTML = `<div class="search-empty">No matching project or name found.</div>`;
+    searchResults.classList.add("open");
+    return;
+  }
+  searchResults.innerHTML = results.map(r => `
+    <div class="search-result">
+      <div class="sr-top">
+        <span class="sr-name">${r.name}</span>
+        <span class="badge ${r.status}">${r.statusLabel}</span>
+      </div>
+      <div class="sr-author">${r.author}</div>
+      ${r.positionAhead != null
+        ? `<div class="sr-position">${r.positionAhead === 0 ? "Next up" : `${r.positionAhead} project${r.positionAhead === 1 ? "" : "s"} ahead of it`} · ${r.groupSize} in this group</div>`
+        : ""}
+      ${r.etaLabel ? `<div class="sr-eta">Estimated wait for next review: ~${r.etaLabel}</div>` : ""}
+      ${r.etaNote ? `<div class="sr-note">${r.etaNote}</div>` : ""}
+    </div>
+  `).join("");
+  searchResults.classList.add("open");
+}
 
 load();
 setInterval(load, 15000); // poll for new bot activity every 15s
