@@ -1,3 +1,5 @@
+# THIS IS ALL VIBE CODED ALL CODE IS AI GENRATOR THIS IS ME EXPERMITING WHAT AI CAN DO
+
 # Stardance Hardware Review Queue
 
 A Slack bot that watches your `#hardware-review` (or whatever channel you point it at), parses the review bot's "new design submission" and "review returned" messages, stores everything in a local SQLite database, and serves a live dashboard.
