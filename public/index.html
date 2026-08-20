@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stardance — Hardware Review Line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14171c; --bg-panel:#191d24; --bg-card:#20252e; --line:#2a2f3a; --line-soft:#232830;
+    --copper:#c97a3d; --copper-bright:#e0955a; --text:#eae7e0; --text-dim:#8b93a1; --text-faint:#5c6472;
+    --awaiting:#5fa8d3; --needs:#e8b04b; --resub:#9d8ce0;
+    --mono:'IBM Plex Mono',monospace; --disp:'Space Grotesk',sans-serif; --body:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:radial-gradient(ellipse 900px 500px at 15% -5%, rgba(201,122,61,0.08), transparent 60%), var(--bg); color:var(--text); font-family:var(--body); -webkit-font-smoothing:antialiased; min-height:100vh;}
+  ::selection{background:var(--copper); color:#14171c;}
+  header{padding:56px 32px 28px; max-width:1100px; margin:0 auto; border-bottom:1px solid var(--line);}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:0.14em; color:var(--copper-bright); text-transform:uppercase; display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .eyebrow::before{content:""; width:7px; height:7px; background:var(--copper); border-radius:50%; box-shadow:0 0 0 3px rgba(201,122,61,0.18);}
+  h1{font-family:var(--disp); font-weight:700; font-size:clamp(32px,5vw,52px); letter-spacing:-0.02em; line-height:1.05; margin-bottom:14px;}
+  h1 span{color:var(--text-faint); font-weight:500;}
+  .sub{color:var(--text-dim); font-size:15px; max-width:560px; line-height:1.55; margin-bottom:28px;}
+  .stats{display:flex; gap:0; flex-wrap:wrap; border:1px solid var(--line); border-radius:10px; overflow:hidden; width:fit-content;}
+  .stat{padding:14px 22px; border-right:1px solid var(--line); font-family:var(--mono);}
+  .stat:last-child{border-right:none;}
+  .stat .n{font-size:22px; font-weight:600; line-height:1;}
+  .stat .l{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:6px;}
+  .stat.awaiting .n{color:var(--awaiting);} .stat.needs .n{color:var(--needs);} .stat.resub .n{color:var(--resub);}
+  .tabs{max-width:1100px; margin:0 auto; padding:24px 32px 0; display:flex; gap:8px;}
+  .tab{font-family:var(--mono); font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; padding:10px 18px; border-radius:7px; cursor:pointer; color:var(--text-dim); border:1px solid transparent; transition:all .15s ease;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--copper-bright); background:rgba(201,122,61,0.09); border-color:rgba(201,122,61,0.25);}
+  main{max-width:1100px; margin:0 auto; padding:32px 32px 100px;}
+  .view{display:none;} .view.active{display:block;}
+  .queue-wrap{position:relative; padding-left:38px;}
+  .trace{position:absolute; left:9px; top:6px; bottom:6px; width:2px; background:repeating-linear-gradient(to bottom, var(--copper) 0 6px, transparent 6px 11px); opacity:0.55;}
+  .group-heading{font-family:var(--mono); font-size:11.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); margin:34px 0 14px; display:flex; align-items:center; gap:10px;}
+  .group-heading:first-child{margin-top:0;}
+  .group-heading .count{color:var(--text-dim);}
+  .ticket{position:relative; background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:18px 20px 18px 22px; margin-bottom:12px; transition:border-color .15s ease, transform .15s ease;}
+  .ticket:hover{border-color:var(--line-soft); transform:translateX(2px);}
+  .ticket::before{content:attr(data-n); position:absolute; left:-38px; top:22px; width:20px; height:20px; border-radius:50%; background:var(--bg); border:2px solid var(--copper); color:var(--copper-bright); font-family:var(--mono); font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:600;}
+  .ticket-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px;}
+  .ticket-name{font-family:var(--disp); font-weight:600; font-size:17px; letter-spacing:-0.01em;}
+  .ticket-author{font-family:var(--mono); font-size:12px; color:var(--text-dim); margin-top:3px;}
+  .badge{font-family:var(--mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; padding:5px 9px; border-radius:5px; white-space:nowrap; flex-shrink:0;}
+  .badge.awaiting{color:var(--awaiting); background:rgba(95,168,211,0.12); border:1px solid rgba(95,168,211,0.3);}
+  .badge.needs{color:var(--needs); background:rgba(232,176,75,0.12); border:1px solid rgba(232,176,75,0.3);}
+  .badge.resub{color:var(--resub); background:rgba(157,140,224,0.12); border:1px solid rgba(157,140,224,0.3);}
+  .ticket-meta{font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-bottom:10px;}
+  .ticket-feedback{font-size:13.5px; color:var(--text-dim); line-height:1.55; border-top:1px solid var(--line-soft); padding-top:10px; margin-top:4px;}
+  .ticket-feedback b{color:var(--text); font-weight:500;}
+  .ticket-links{margin-top:10px; display:flex; gap:14px;}
+  .ticket-links a{font-family:var(--mono); font-size:11px; color:var(--copper-bright); text-decoration:none; border-bottom:1px solid rgba(201,122,61,0.35);}
+  .ticket-links a:hover{border-color:var(--copper-bright);}
+  .log-item{display:grid; grid-template-columns:64px 1fr; gap:18px; padding:16px 0; border-bottom:1px solid var(--line-soft);}
+  .log-time{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); padding-top:2px;}
+  .log-body .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:5px;}
+  .log-body .name{font-family:var(--disp); font-weight:600; font-size:15px;}
+  .log-body .author{font-family:var(--mono); font-size:11.5px; color:var(--text-dim);}
+  .log-body .desc{font-size:13px; color:var(--text-dim); line-height:1.5; margin-top:2px;}
+  .tag{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:0.05em; padding:3px 7px; border-radius:4px;}
+  .tag.new{color:var(--awaiting); background:rgba(95,168,211,0.12);}
+  .tag.returned{color:var(--needs); background:rgba(232,176,75,0.12);}
+  footer{max-width:1100px; margin:0 auto; padding:0 32px 60px; font-family:var(--mono); font-size:11px; color:var(--text-faint); border-top:1px solid var(--line); padding-top:20px;}
+  .empty{color:var(--text-faint); font-family:var(--mono); font-size:13px; padding:40px 0;}
+  @media (max-width:640px){
+    header,.tabs,main,footer{padding-left:18px; padding-right:18px;}
+    .queue-wrap{padding-left:28px;} .trace{left:5px;}
+    .ticket::before{left:-28px; width:16px; height:16px; font-size:9px;}
+    .log-item{grid-template-columns:1fr; gap:6px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow" id="live-indicator">Stardance · Hack Club — Live Review Line</div>
+  <h1>Hardware review<br><span>queue tracker</span></h1>
+  <p class="sub">Pulled live from #hardware-review by the Stardance bot. Oldest submissions sit at the front of the queue.</p>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-view="queue">Current Queue</div>
+  <div class="tab" data-view="log">Full Log</div>
+</div>
+
+<main>
+  <div class="view active" id="view-queue">
+    <div class="queue-wrap"><div class="trace"></div><div id="queue-groups"></div></div>
+  </div>
+  <div class="view" id="view-log">
+    <div id="log-list"></div>
+  </div>
+</main>
+
+<footer id="footer-note">connecting to API…</footer>
+
+<script>
+const statusLabel = { awaiting: "Awaiting First Review", needs: "Needs Changes", resub: "Resubmitted — Awaiting Re-Review" };
+const order = ["awaiting", "resub", "needs"];
+const groupTitles = {
+  awaiting: "Awaiting first review",
+  resub: "Resubmitted — awaiting re-review",
+  needs: "Sent back — needs changes before resubmitting",
+};
+const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+async function load() {
+  try {
+    const [qRes, lRes] = await Promise.all([fetch("/api/queue"), fetch("/api/log")]);
+    const { projects } = await qRes.json();
+    const { events } = await lRes.json();
+    renderStats(projects);
+    renderQueue(projects);
+    renderLog(events);
+    document.getElementById("footer-note").textContent =
+      `${projects.length} projects tracked · ${events.length} events on file · live from Slack`;
+  } catch (err) {
+    document.getElementById("footer-note").textContent = "Could not reach the API — is the bot server running?";
+    document.getElementById("queue-groups").innerHTML = `<div class="empty">No data yet. Once the bot is running and has synced messages, the queue appears here automatically.</div>`;
+  }
+}
+
+function renderStats(projects) {
+  const counts = { awaiting: 0, needs: 0, resub: 0 };
+  projects.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><div class="n">${projects.length}</div><div class="l">Total Projects</div></div>
+    <div class="stat awaiting"><div class="n">${counts.awaiting}</div><div class="l">Awaiting Review</div></div>
+    <div class="stat needs"><div class="n">${counts.needs}</div><div class="l">Needs Changes</div></div>
+    <div class="stat resub"><div class="n">${counts.resub}</div><div class="l">Resubmitted</div></div>`;
+}
+
+function renderQueue(projects) {
+  let n = 1, html = "";
+  order.forEach(status => {
+    const items = projects
+      .filter(p => p.status === status)
+      .sort((a, b) => new Date(a.lastActivityAt) - new Date(b.lastActivityAt));
+    if (!items.length) return;
+    html += `<div class="group-heading">${groupTitles[status]} <span class="count">— ${items.length}</span></div>`;
+    items.forEach(p => {
+      const priorFeedback = [...p.events].reverse().find(e => e.type === "review_returned");
+      html += `
+        <div class="ticket" data-n="${String(n++).padStart(2, "0")}">
+          <div class="ticket-top">
+            <div><div class="ticket-name">${p.name}</div><div class="ticket-author">${p.author}</div></div>
+            <span class="badge ${p.status}">${statusLabel[p.status]}</span>
+          </div>
+          <div class="ticket-meta">${p.status === "needs" ? "reviewed" : "submitted"} ${fmtTime(p.lastActivityAt)}${p.events.length > 1 ? ` · ${p.events.length} events on file` : ""}</div>
+          ${priorFeedback ? `<div class="ticket-feedback"><b>${priorFeedback.reviewer}:</b> ${priorFeedback.feedback}</div>` : ""}
+          ${p.githubUrl ? `<div class="ticket-links"><a href="${p.githubUrl}" target="_blank" rel="noopener">github repo →</a></div>` : ""}
+        </div>`;
+    });
+  });
+  document.getElementById("queue-groups").innerHTML = html || `<div class="empty">Queue is empty.</div>`;
+}
+
+function renderLog(events) {
+  const sorted = [...events].sort((a, b) => new Date(a.occurred_at) - new Date(b.occurred_at));
+  document.getElementById("log-list").innerHTML = sorted.map(e => `
+    <div class="log-item">
+      <div class="log-time">${fmtTime(e.occurred_at)}</div>
+      <div class="log-body">
+        <div class="row">
+          <span class="tag ${e.type === "new_submission" ? "new" : "returned"}">${e.type === "new_submission" ? "New submission" : "Review returned"}</span>
+          <span class="name">${e.project_name}</span>
+          <span class="author">${e.project_author}</span>
+        </div>
+        ${e.type === "review_returned" ? `<div class="desc"><b style="color:var(--text)">${e.reviewer}:</b> ${e.feedback}</div>` : (e.github_url ? `<div class="desc">${e.github_url}</div>` : "")}
+      </div>
+    </div>`).join("") || `<div class="empty">No events yet.</div>`;
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("view-" + tab.dataset.view).classList.add("active");
+  });
+});
+
+load();
+setInterval(load, 15000); // poll for new bot activity every 15s
+</script>
+</body>
+</html>

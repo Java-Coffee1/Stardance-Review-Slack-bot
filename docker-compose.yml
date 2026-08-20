@@ -1,0 +1,13 @@
+services:
+  review-queue:
+    build: .
+    container_name: stardance-review-queue
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./queue-data:/app/data
+
+

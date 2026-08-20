@@ -1,0 +1,18 @@
+{
+  "name": "stardance-review-queue",
+  "version": "1.0.0",
+  "description": "Slack bot + backend that scrapes a hardware-review channel and serves a live queue dashboard",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "backfill": "node src/backfill.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.19.0",
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
+  }
+}
