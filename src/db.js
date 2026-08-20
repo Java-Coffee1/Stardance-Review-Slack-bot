@@ -77,4 +77,16 @@ function getAllEventsChronological() {
     .all();
 }
 
-module.exports = { db, findOrCreateProject, insertEvent, getAllProjectsWithEvents, getAllEventsChronological };
+function hasAnyEvents() {
+  const row = db.prepare("SELECT COUNT(*) AS count FROM events").get();
+  return row.count > 0;
+}
+
+module.exports = {
+  db,
+  findOrCreateProject,
+  insertEvent,
+  getAllProjectsWithEvents,
+  getAllEventsChronological,
+  hasAnyEvents,
+};

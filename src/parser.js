@@ -1,34 +1,40 @@
 /**
- * Parses the two message shapes the Stardance review bot posts:
+ * Parses the review bot's messages. Slack delivers these with real mrkdwn
+ * syntax in event.text — bold via *text*, links via <url|label>, mentions
+ * via <@USERID> — not plain stripped text. Confirmed against real payloads:
  *
- *  NEW SUBMISSION:
- *    "new design submission! {ProjectName} by @{author} :yay:
- *     github repo: {url}"
+ *   "*new design submission!* *<https://.../projects/48410|AeroTrack>*
+ *    by <@U0B8K9XGVMM> :yay: *github repo:*
+ *    <https://github.com/x/y|https://github.com/x/y>"
  *
- *  REVIEW RETURNED:
- *    ":yay: brand new design review!! :stardance_star:
- *
- *      returned: {ProjectName} by @{author}
- *     feedback from @{reviewer}: {feedback text}"
- *
- * Real Slack events carry user mentions as <@U12345> — resolveMention()
- * below turns those into @handle using the Slack Web API. If a message
- * doesn't match either shape, both parse functions return null so the
- * caller can skip/log it instead of inserting garbage.
+ * The "review returned" shape hasn't been confirmed against a raw payload
+ * yet, so its regex is written loosely (tolerating any amount of whitespace
+ * between segments) to survive minor formatting differences. If it still
+ * doesn't match after this fix, run the inspect script filtered to a
+ * "review_returned"-type message and send that over.
  */
 
+function mrkdwnToPlain(text) {
+  // <url|label> -> label ; <url> -> url ; strip bold asterisks
+  return text
+    .replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, "$2")
+    .replace(/<(https?:\/\/[^>]+)>/g, "$1")
+    .replace(/\*/g, "")
+    .trim();
+}
+
 const NEW_SUBMISSION_RE =
-  /new design submission!\s*(.+?)\s+by\s+(<@[\w]+>|@\S[^\n:]*?)\s*:\w+:[\s\S]*?github repo:\s*(\S+)/i;
+  /\*new design submission!\*\s*\*(.+?)\*\s*by\s*(<@[\w]+>)\s*:\w+:[\s\S]*?\*github repo:\*\s*<([^|>]+)(?:\|[^>]*)?>/i;
 
 const REVIEW_RETURNED_RE =
-  /returned:\s*(.+?)\s+by\s+(<@[\w]+>|@\S+)[\s\n]*feedback from\s+(<@[\w]+>|@\S+)\s*:\s*([\s\S]+)/i;
+  /returned:\s*\*(.+?)\*\s*by\s*(<@[\w]+>)[\s\S]*?feedback from\s*(<@[\w]+>)\s*:\s*([\s\S]+)/i;
 
 function parseNewSubmission(text) {
   const m = text.match(NEW_SUBMISSION_RE);
   if (!m) return null;
   return {
     type: "new_submission",
-    name: m[1].trim(),
+    name: mrkdwnToPlain(m[1]),
     authorRaw: m[2].trim(),
     githubUrl: m[3].trim(),
   };
@@ -39,11 +45,10 @@ function parseReviewReturned(text) {
   if (!m) return null;
   return {
     type: "review_returned",
-    name: m[1].trim(),
+    name: mrkdwnToPlain(m[1]),
     authorRaw: m[2].trim(),
     reviewerRaw: m[3].trim(),
-    // Trim trailing unfurl/link-preview junk Slack sometimes appends after the feedback text.
-    feedback: m[4].split(/\n{2,}/)[0].trim(),
+    feedback: mrkdwnToPlain(m[4]),
   };
 }
 

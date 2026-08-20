@@ -40,6 +40,9 @@ To run the one-time backfill (import everything posted before the bot joined) in
 docker compose exec review-queue node src/backfill.js
 ```
 
+> **Heads up:** as of March 2026, Slack caps `conversations.history` at 15 messages per request and 1 request per minute for any app not published on the Slack Marketplace — which this bot is (it's just for your workspace). That's a Slack-side limit, not a bug: the backfill script paces itself to it and logs progress per page, but a channel with a few hundred messages can legitimately take 20-40+ minutes to fully import. Let it run; if it looks stuck, check the logs for "Rate limited by Slack" / "Waiting 60s" lines confirming it's still working.
+
+
 Useful commands:
 
 ```bash

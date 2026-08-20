@@ -29,6 +29,7 @@
   .stat .n{font-size:22px; font-weight:600; line-height:1;}
   .stat .l{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:6px;}
   .stat.awaiting .n{color:var(--awaiting);} .stat.needs .n{color:var(--needs);} .stat.resub .n{color:var(--resub);}
+  .stat.response .n{color:var(--copper-bright); font-size:18px;}
   .tabs{max-width:1100px; margin:0 auto; padding:24px 32px 0; display:flex; gap:8px;}
   .tab{font-family:var(--mono); font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; padding:10px 18px; border-radius:7px; cursor:pointer; color:var(--text-dim); border:1px solid transparent; transition:all .15s ease;}
   .tab:hover{color:var(--text);}
@@ -113,9 +114,9 @@ const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: "numeric", m
 async function load() {
   try {
     const [qRes, lRes] = await Promise.all([fetch("/api/queue"), fetch("/api/log")]);
-    const { projects } = await qRes.json();
+    const { projects, avgResponseTimeLabel } = await qRes.json();
     const { events } = await lRes.json();
-    renderStats(projects);
+    renderStats(projects, avgResponseTimeLabel);
     renderQueue(projects);
     renderLog(events);
     document.getElementById("footer-note").textContent =
@@ -126,14 +127,15 @@ async function load() {
   }
 }
 
-function renderStats(projects) {
+function renderStats(projects, avgResponseTimeLabel) {
   const counts = { awaiting: 0, needs: 0, resub: 0 };
   projects.forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="n">${projects.length}</div><div class="l">Total Projects</div></div>
     <div class="stat awaiting"><div class="n">${counts.awaiting}</div><div class="l">Awaiting Review</div></div>
     <div class="stat needs"><div class="n">${counts.needs}</div><div class="l">Needs Changes</div></div>
-    <div class="stat resub"><div class="n">${counts.resub}</div><div class="l">Resubmitted</div></div>`;
+    <div class="stat resub"><div class="n">${counts.resub}</div><div class="l">Resubmitted</div></div>
+    <div class="stat response"><div class="n">${avgResponseTimeLabel || "—"}</div><div class="l">Avg Review Time</div></div>`;
 }
 
 function renderQueue(projects) {
