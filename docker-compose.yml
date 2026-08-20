@@ -1,7 +1,7 @@
 services:
   review-queue:
     build: .
-    container_name: stardance-review-queue
+    container_name: better-stardance-hardware-feed
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -10,3 +10,17 @@ services:
     volumes:
       - ./queue-data:/app/data
 
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.better-stardance-hardware-feed.rule=Host(`better-stardance-hardware-feed.javamurray.com`)"
+      - "traefik.http.routers.better-stardance-hardware-feed.entrypoints=https-external"
+      - "traefik.http.routers.better-stardance-hardware-feed.tls=true"
+      - "traefik.http.services.better-stardance-hardware-feed.loadbalancer.server.port=3000"
+#     - "traefik.http.routers.nginx.middlewares=middlewares-rate-limit@file,middlewares-authentik@file"
+    networks:
+     - proxy-net
+
+
+networks:
+  proxy-net:
+    external: true
